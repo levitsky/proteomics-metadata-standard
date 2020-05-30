@@ -36,23 +36,28 @@ jobs:
       if: github.event_name != 'schedule'
       id: getfiles
       run: |
-        echo 'Base ref:'
-        echo ${{ github.base_ref }}
-        echo 'Changed files:'
-        git diff-tree --no-commit-id --name-only -r ${{ github.event.before }} ${{ github.sha }}
-        echo "::set-output name=files::$(git diff-tree --no-commit-id --name-only -r ${{ github.event.before }} ${{ github.sha }})"
+        export OUTFILE=$HOME/filelist.txt
+        if [ ${{ github.event_name }} == pull_request ]; then
+            echo 'Changed files:'
+            git diff-tree --no-commit-id --name-only -r origin/${{ github.event.pull_request.base.ref }} ${{ github.sha }} | tee "$OUTFILE"
+        else
+          # push
+          git diff-tree --no-commit-id --name-only -r ${{ github.event.before }} ${{ github.sha }} | tee "$OUTFILE"
+        fi
     - name: Run validation
-      env:
-        FILELIST: ${{ steps.getfiles.outputs.files }}
+      # env:
+        # FILELIST: ${{ steps.getfiles.outputs.files }}
       run: |
+        export FILELIST=$HOME/filelist.txt
+        cat "$FILELIST"
         if [ ${{ github.event_name }} == "schedule" ]; then
           echo "Validating all projects (schedule)"
           python validate.py -v
-        elif echo "$FILELIST" | grep -q '^validate.py'; then
+        elif grep -q '^validate.py' "$FILELIST"; then
           echo "Validating all projects (script changed)"
           python validate.py -v
         else
-          projects=$(echo "$FILELIST" | grep '^annotated-projects' | cut -d/ -f 2)
+          projects=$(cat "$FILELIST" | grep '^annotated-projects' | cut -d/ -f 2)
           echo "Validating projects: $projects"
           python validate.py -v $projects
         fi
