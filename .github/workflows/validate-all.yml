@@ -32,6 +32,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install wheel
         pip install git+https://github.com/bigbio/sdrf-pipelines
+    - name: Dump GitHub context
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+      run: echo "$GITHUB_CONTEXT"
     - name: Get a list of changed files
       if: github.event_name != 'schedule'
       id: getfiles
@@ -45,8 +49,6 @@ jobs:
           git diff-tree --no-commit-id --name-only -r ${{ github.event.before }} ${{ github.sha }} | tee "$OUTFILE"
         fi
     - name: Run validation
-      # env:
-        # FILELIST: ${{ steps.getfiles.outputs.files }}
       run: |
         export FILELIST=$HOME/filelist.txt
         cat "$FILELIST"
